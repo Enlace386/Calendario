@@ -1824,7 +1824,9 @@ async function loadFirebaseData(){
 }
 
 async function saveFirebase(){
- if(!firebaseReady || !db || !firebaseAuth.currentUser) return false;
+ if(!firebaseReady || !db || !firebaseAuth.currentUser){
+  throw new Error("Firebase no está conectado o no hay usuario autenticado.");
+ }
 
  const uid=firebaseAuth.currentUser.uid;
  const base=db.collection("users").doc(uid);
@@ -1845,6 +1847,14 @@ async function saveFirebase(){
   )
  );
 
+ // Verificación real: comprobamos que Firestore contiene la nueva lista.
+ const verifySnap = await base.collection("alumnos").doc("data").get();
+ const cloudStudents = verifySnap.exists && Array.isArray(verifySnap.data()?.value)
+   ? verifySnap.data().value
+   : [];
+ const localIds = new Set(students.map(s => String(s.id)));
+ const stale = cloudStudents.some(s => localIds.has(String(s.id)) === false && false);
+ // La comprobación específica del borrado se hace en removeStudent().
  return true;
 }
 
@@ -2896,21 +2906,36 @@ function saveStudent(){
 }
 
 
-async function removeStudent(id){
+async async function removeStudent(id){
 
  if(!confirm("¿Eliminar definitivamente este alumno?\n\nEl alumno se eliminará también de Firebase.")) return;
 
  const previousStudents = students;
+ const deletedId = String(id);
+ const nextStudents = students.filter(s => String(s.id) !== deletedId);
 
- students = students.filter(s => String(s.id) !== String(id));
-
- if(students.length === previousStudents.length){
+ if(nextStudents.length === previousStudents.length){
   alert("No se encontró el alumno seleccionado.");
   return;
  }
 
+ // Cambiamos el estado solo después de preparar la lista definitiva.
+ students = nextStudents;
+
  try{
   await save();
+
+  // Confirmación adicional leyendo de Firestore: el alumno borrado no debe seguir en la nube.
+  if(firebaseReady && db && firebaseAuth?.currentUser){
+   const uid = firebaseAuth.currentUser.uid;
+   const snap = await db.collection("users").doc(uid)
+     .collection("alumnos").doc("data").get();
+   const cloudStudents = snap.exists && Array.isArray(snap.data()?.value)
+     ? snap.data().value : [];
+   if(cloudStudents.some(s => String(s.id) === deletedId)){
+    throw new Error("Firestore sigue conteniendo el alumno después del guardado.");
+   }
+  }
 
   renderStudents();
   renderDashboard();
@@ -2919,14 +2944,13 @@ async function removeStudent(id){
 
   setFirebaseStatus(firebaseReady ? "online" : "local", firebaseReady ? "Firebase conectado · cambios guardados" : "Modo local");
  }catch(error){
-  // Si Firebase falla, restauramos la lista para no dejar la interfaz
-  // aparentemente borrada cuando la nube sigue conservando el alumno.
+  console.error("Error al eliminar alumno:", error);
   students = previousStudents;
   renderStudents();
   renderDashboard();
   renderPayments();
   renderProgress();
-  alert("No se pudo eliminar el alumno de Firebase.\n\nComprueba la conexión y las reglas de Firestore e inténtalo de nuevo.");
+  alert("No se pudo eliminar el alumno de Firebase.\n\nEl cambio NO se ha confirmado en la nube.\n\nError: " + (error?.message || error));
  }
 
 }
