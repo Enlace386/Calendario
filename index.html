@@ -634,6 +634,27 @@ input:focus,select:focus{
   padding:75px 15px 15px;
  }
 }
+.modal{
+ width:min(760px,100%);
+ max-height:90vh;
+ overflow:auto;
+ background:#121217;
+ border:1px solid #2a2a33;
+ border-radius:18px;
+ padding:22px;
+ box-shadow:0 25px 80px rgba(0,0,0,.55);
+}
+
+.modal h2{margin:0 0 18px;font-size:20px}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px;flex-wrap:wrap}
+.days-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.day-check{position:relative}
+.day-check input{position:absolute;opacity:0;pointer-events:none}
+.day-check label{display:flex;align-items:center;justify-content:center;min-height:42px;padding:9px 7px;border:1px solid #292932;border-radius:10px;background:#0b0b0f;color:#a8a8b3;font-size:11px;font-weight:800;cursor:pointer;transition:.15s}
+.day-check input:checked + label{background:#17251b;border-color:#166534;color:#86efac}
+.student-extra{grid-column:1/-1;padding:12px;border:1px solid var(--line);border-radius:12px;background:#0f0f14}
+@media(max-width:560px){.days-grid{grid-template-columns:repeat(2,1fr)}.modal{padding:16px}.formgrid{grid-template-columns:1fr}}
+
 .modal-bg{
  display:none;
  position:fixed;
@@ -1049,6 +1070,9 @@ input:focus,select:focus{
 
 <tr>
 <th>Alumno</th>
+<th>Actividad</th>
+<th>Horario</th>
+<th>AMPA</th>
 <th>Grupo</th>
 <th>Edad</th>
 <th>Estado</th>
@@ -1407,98 +1431,97 @@ input:focus,select:focus{
 
 <div class="modal">
 
-<h2>
- Nuevo alumno
-</h2>
-
+<h2>Nuevo alumno</h2>
 
 <div class="formgrid">
 
 <div class="field">
-
-<label>Nombre</label>
-
-<input
- id="newName"
- placeholder="Nombre y apellidos"
->
-
+<label>Nombre y apellidos *</label>
+<input id="newName" placeholder="Nombre y apellidos">
 </div>
 
-
 <div class="field">
-
-<label>Edad</label>
-
-<input
- id="newAge"
- type="number"
- min="4"
- max="16"
- placeholder="7"
->
-
+<label>Edad *</label>
+<input id="newAge" type="number" min="4" max="16" placeholder="7">
 </div>
 
+<div class="field">
+<label>Fecha de nacimiento</label>
+<input id="newBirthDate" type="date">
+</div>
 
 <div class="field">
+<label>Actividad *</label>
+<select id="newActivity" onchange="updateStudentTimes()">
+<option value="Judo">🥋 Judo</option>
+<option value="Multideporte">🏃 Multideporte</option>
+</select>
+</div>
 
+<div class="field">
 <label>Grupo</label>
-
 <select id="newGroup"></select>
-
 </div>
 
+<div class="field">
+<label>Horario *</label>
+<select id="newTime"></select>
+</div>
+
+<div class="field" style="grid-column:1/-1">
+<label>Días que viene *</label>
+<div class="days-grid">
+<div class="day-check"><input type="checkbox" id="dayMon" value="Lunes"><label for="dayMon">Lunes</label></div>
+<div class="day-check"><input type="checkbox" id="dayTue" value="Martes"><label for="dayTue">Martes</label></div>
+<div class="day-check"><input type="checkbox" id="dayWed" value="Miércoles"><label for="dayWed">Miércoles</label></div>
+<div class="day-check"><input type="checkbox" id="dayThu" value="Jueves"><label for="dayThu">Jueves</label></div>
+</div>
+</div>
 
 <div class="field">
+<label>AMPA *</label>
+<select id="newAmpa">
+<option value="No">No</option>
+<option value="Sí">Sí</option>
+</select>
+</div>
 
+<div class="field">
 <label>Cinturón</label>
-
 <select id="newBelt">
-
 <option>Blanco</option>
 <option>Blanco-Amarillo</option>
 <option>Amarillo</option>
 <option>Naranja</option>
 <option>Verde</option>
-
 </select>
-
 </div>
-
 
 <div class="field">
-
 <label>Cuota mensual (€)</label>
+<input id="newFee" type="number" min="0" value="40">
+</div>
 
-<input
- id="newFee"
- type="number"
- min="0"
- value="40"
->
+<div class="field">
+<label>Teléfono de contacto</label>
+<input id="newPhone" type="tel" placeholder="600 000 000">
+</div>
 
+<div class="field">
+<label>Padre / madre / tutor</label>
+<input id="newTutor" placeholder="Nombre del responsable">
+</div>
+
+<div class="field" style="grid-column:1/-1">
+<label>Observaciones</label>
+<textarea id="newNotes" rows="3" placeholder="Alergias, información importante, observaciones..." style="width:100%;resize:vertical;background:#0b0b0f;border:1px solid #292932;color:#eee;border-radius:10px;padding:11px 12px;outline:none;font-family:inherit"></textarea>
 </div>
 
 </div>
-
 
 <div class="modal-actions">
-
-<button
- class="btn"
- onclick="closeModal('studentModal')"
->
- Cancelar
-</button>
-
-<button
- class="btn primary"
- onclick="saveStudent()"
->
- Guardar alumno
-</button>
-
+<button class="btn" onclick="closeModal('studentModal')">Cancelar</button>
+<button class="btn primary" onclick="saveStudent()">Guardar alumno</button>
 </div>
 
 </div>
@@ -1671,46 +1694,65 @@ function setFirebaseStatus(type, text){
 }
 
 async function loadFirebaseData(){
-  if(!firebaseReady || !db) return false;
+ if(!firebaseReady || !db || !firebaseAuth.currentUser) return false;
 
-  try{
-    const names=["students","classes","attendance","payments"];
-    const results=await Promise.all(
-      names.map(name=>db.collection("clubSukiData").doc(name).get())
-    );
+ try{
+  const uid=firebaseAuth.currentUser.uid;
+  const base=db.collection("users").doc(uid);
+  const names={
+   students:"alumnos",
+   classes:"clases",
+   attendance:"asistencias",
+   payments:"pagos"
+  };
 
-    let found=false;
-    results.forEach((snap,index)=>{
-      if(!snap.exists) return;
-      found=true;
-      const data=snap.data() || {};
-      const value=data.value;
-      if(index===0 && Array.isArray(value)) students=value;
-      if(index===1 && Array.isArray(value)) classes=value;
-      if(index===2 && value && typeof value==="object") attendance=value;
-      if(index===3 && value && typeof value==="object") payments=value;
-    });
+  const results=await Promise.all(
+   Object.values(names).map(name=>base.collection(name).doc("data").get())
+  );
 
-    return found;
-  }catch(error){
-    console.error("No se pudieron cargar los datos de Firebase:", error);
-    setFirebaseStatus("error", "No se pudieron cargar los datos");
-    return false;
-  }
+  let found=false;
+  const keys=Object.keys(names);
+  results.forEach((snap,index)=>{
+   if(!snap.exists) return;
+   found=true;
+   const data=snap.data() || {};
+   const value=data.value;
+   const key=keys[index];
+   if(key==="students" && Array.isArray(value)) students=value;
+   if(key==="classes" && Array.isArray(value)) classes=value;
+   if(key==="attendance" && value && typeof value==="object") attendance=value;
+   if(key==="payments" && value && typeof value==="object") payments=value;
+  });
+
+  return found;
+ }catch(error){
+  console.error("No se pudieron cargar los datos de Firebase:", error);
+  setFirebaseStatus("error", "No se pudieron cargar los datos");
+  return false;
+ }
 }
 
 async function saveFirebase(){
-  if(!firebaseReady || !db) return;
+ if(!firebaseReady || !db || !firebaseAuth.currentUser) return;
 
-  const data={students,classes,attendance,payments};
-  await Promise.all(
-    Object.entries(data).map(([name,value])=>
-      db.collection("clubSukiData").doc(name).set({
-        value,
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-      })
-    )
-  );
+ const uid=firebaseAuth.currentUser.uid;
+ const base=db.collection("users").doc(uid);
+ const data={students,classes,attendance,payments};
+ const names={
+  students:"alumnos",
+  classes:"clases",
+  attendance:"asistencias",
+  payments:"pagos"
+ };
+
+ await Promise.all(
+  Object.entries(data).map(([key,value])=>
+   base.collection(names[key]).doc("data").set({
+    value,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+   })
+  )
+ );
 }
 
 /* ======================================================
@@ -2552,219 +2594,140 @@ function goToday(){
 
 function renderStudents(){
 
- const q=
-  (
-   document
-   .getElementById("studentSearch")
-   ?.value||""
-  ).toLowerCase();
+ const q=(document.getElementById("studentSearch")?.value||"").toLowerCase();
+ const group=document.getElementById("groupFilter")?.value||"";
 
+ const list=students.filter(s=>
+  (s.name||"").toLowerCase().includes(q) &&
+  (!group||s.group===group)
+ );
 
- const group=
-  document
-   .getElementById("groupFilter")
-   ?.value||"";
-
-
- const list=
-  students.filter(
-   s=>
-   s.name
-    .toLowerCase()
-    .includes(q)
-   &&
-   (!group||s.group===group)
-  );
-
-
- document
-  .getElementById("studentsBody")
-  .innerHTML=
-
-  list.map(
-   s=>`
-
+ document.getElementById("studentsBody").innerHTML=
+ list.map(s=>{
+  const days=Array.isArray(s.days)?s.days.join(" · "):"";
+  const schedule=days ? `${days} · ${s.time||""}` : (s.time||"—");
+  const activity=s.activity||"Judo";
+  return `
    <tr>
-
     <td>
-
      <div class="row-left">
-
-      <div class="avatar">
-       ${initials(s.name)}
-      </div>
-
+      <div class="avatar">${initials(s.name)}</div>
       <div>
-
-       <b>
-        ${s.name}
-       </b>
-
-       <div class="row-sub">
-        ${s.belt}
-        ·
-        ${money(s.fee)}/mes
-       </div>
-
+       <b>${s.name}</b>
+       <div class="row-sub">${s.belt||"Blanco"} · ${money(s.fee)}/mes</div>
       </div>
-
      </div>
-
     </td>
-
+    <td>${activity==="Judo"?"🥋":"🏃"} ${activity}</td>
+    <td><div style="min-width:145px"><b>${s.time||"—"}</b><div class="row-sub">${days||"Sin días"}</div></div></td>
+    <td><span class="badge ${s.ampa==="Sí"?"green":""}">${s.ampa||"No"}</span></td>
+    <td>${s.group||"—"}</td>
+    <td>${s.age||"—"}</td>
+    <td><span class="badge green">Activo</span></td>
     <td>
-     ${s.group}
-    </td>
-
-    <td>
-     ${s.age}
-    </td>
-
-    <td>
-     <span class="badge green">
-      Activo
-     </span>
-    </td>
-
-    <td>
-
      <div style="min-width:100px">
-
-      <span
-       style="font-size:10px;color:#999"
-      >
-       ${s.progress}%
-      </span>
-
-      <div class="progress">
-
-       <i
-        style="width:${s.progress}%"
-       ></i>
-
-      </div>
-
+      <span style="font-size:10px;color:#999">${s.progress||0}%</span>
+      <div class="progress"><i style="width:${s.progress||0}%"></i></div>
      </div>
-
     </td>
-
     <td>
-
-     <button
-      class="btn"
-      onclick="removeStudent(${s.id})"
-     >
-      Eliminar
-     </button>
-
+     <button class="btn" onclick="removeStudent(${s.id})">Eliminar</button>
     </td>
-
-   </tr>
-
-   `
-  )
-  .join("")
-
-  ||
-
-  `
-  <tr>
-   <td colspan="6">
-    <div class="empty">
-     No se han encontrado alumnos.
-    </div>
-   </td>
-  </tr>
-  `;
-
+   </tr>`;
+ }).join("") || `
+  <tr><td colspan="9"><div class="empty">No se han encontrado alumnos.</div></td></tr>`;
 }
 
 
 function openStudent(){
-
- document
-  .getElementById("studentModal")
-  .classList.add("show");
-
+ document.getElementById("studentModal").classList.add("show");
+ updateStudentTimes();
 }
 
+function updateStudentTimes(){
+ const activity=document.getElementById("newActivity")?.value||"Judo";
+ const select=document.getElementById("newTime");
+ if(!select)return;
+ const options=activity==="Multideporte"
+  ? [{v:"15:50",t:"15:50–16:50"}]
+  : [
+    {v:"16:00",t:"16:00–17:00"},
+    {v:"17:00",t:"17:00–18:00"},
+    {v:"18:00",t:"18:00–19:00"},
+    {v:"19:00",t:"19:00–20:00"}
+   ];
+ select.innerHTML=options.map(o=>`<option value="${o.v}">${o.t}</option>`).join("");
+}
+
+function getSelectedStudentDays(){
+ return ["Mon","Tue","Wed","Thu"]
+  .map(d=>document.getElementById("day"+d))
+  .filter(Boolean)
+  .filter(el=>el.checked)
+  .map(el=>el.value);
+}
+
+function resetStudentForm(){
+ ["newName","newAge","newBirthDate","newPhone","newTutor","newNotes"].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.value="";
+ });
+ document.getElementById("newFee").value=40;
+ document.getElementById("newActivity").value="Judo";
+ document.getElementById("newAmpa").value="No";
+ document.getElementById("newBelt").value="Blanco";
+ ["Mon","Tue","Wed","Thu"].forEach(d=>{
+  const el=document.getElementById("day"+d);
+  if(el)el.checked=false;
+ });
+ updateStudentTimes();
+}
 
 function saveStudent(){
+ const name=document.getElementById("newName").value.trim();
+ const age=+document.getElementById("newAge").value;
+ const activity=document.getElementById("newActivity").value;
+ const time=document.getElementById("newTime").value;
+ const days=getSelectedStudentDays();
+ const fee=+document.getElementById("newFee").value||0;
 
- const name=
-  document
-   .getElementById("newName")
-   .value.trim();
-
- const age=
-  +document
-   .getElementById("newAge")
-   .value;
-
- const fee=
-  +document
-   .getElementById("newFee")
-   .value||0;
-
-
- if(!name||!age){
-
-  alert(
-   "Introduce nombre y edad."
-  );
-
+ if(!name||!age||!activity||!time||!days.length){
+  alert("Completa nombre, edad, actividad, horario y al menos un día.");
   return;
-
  }
 
+ if(activity==="Multideporte" && days.some(d=>d!=="Martes" && d!=="Jueves")){
+  alert("El horario actual de Multideporte es martes y jueves de 15:50 a 16:50.");
+  return;
+ }
 
  students.push({
-
   id:Date.now(),
-
-  name:name,
-
-  age:age,
-
-  group:
-   document
-    .getElementById("newGroup")
-    .value,
-
-  belt:
-   document
-    .getElementById("newBelt")
-    .value,
-
-  fee:fee,
-
+  name,
+  age,
+  birthDate:document.getElementById("newBirthDate").value,
+  activity,
+  days,
+  time,
+  schedule:days.join(" · ")+" · "+time,
+  ampa:document.getElementById("newAmpa").value,
+  group:document.getElementById("newGroup").value,
+  belt:document.getElementById("newBelt").value,
+  fee,
+  phone:document.getElementById("newPhone").value.trim(),
+  tutor:document.getElementById("newTutor").value.trim(),
+  notes:document.getElementById("newNotes").value.trim(),
   active:true,
-
   progress:10
-
  });
 
-
  save();
-
  closeModal("studentModal");
-
- document
-  .getElementById("newName")
-  .value="";
-
- document
-  .getElementById("newAge")
-  .value="";
-
+ resetStudentForm();
  renderStudents();
-
  renderDashboard();
-
  renderPayments();
-
  renderProgress();
-
 }
 
 
@@ -3652,6 +3615,8 @@ async function init(){
  fillSelect(
   "newGroup"
  );
+
+ updateStudentTimes();
 
  fillSelect(
   "classGroup"
