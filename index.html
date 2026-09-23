@@ -1112,19 +1112,42 @@ input:focus,select:focus{
 <div class="toolbar">
 
 <select
+ id="attActivity"
+ onchange="updateAttendanceTimes(); renderAttendance()"
+ style="max-width:220px"
+>
+<option value="">Selecciona deporte</option>
+<option value="Judo">🥋 Judo</option>
+<option value="Multideporte">🏃 Multideporte</option>
+</select>
+
+<select
+ id="attTime"
+ onchange="renderAttendance()"
+ style="max-width:220px"
+ disabled
+>
+<option value="">Primero selecciona deporte</option>
+</select>
+
+<select
  id="attGroup"
  onchange="renderAttendance()"
- style="max-width:280px"
-></select>
+ style="max-width:240px"
+>
+<option value="">Todos los grupos</option>
+</select>
 
 <input
  id="attDate"
  type="date"
- onchange="renderAttendance()"
+ onchange="updateAttendanceTimes(); renderAttendance()"
  style="max-width:180px"
 >
 
 </div>
+
+<div id="attendanceContext" class="schedule-strip" style="margin-top:-3px"></div>
 
 <div id="attendanceList" class="att-grid"></div>
 
@@ -2763,145 +2786,126 @@ function removeStudent(id){
    ASISTENCIA
 ====================================================== */
 
+function getAttendanceDayName(dateValue){
+ const d=new Date(dateValue+"T12:00:00");
+ return ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][d.getDay()];
+}
+
+function getAttendanceSchedule(activity,dateValue){
+ const d=new Date(dateValue+"T12:00:00");
+ const day=d.getDay();
+
+ if(activity==="Multideporte")
+  return (day===2||day===4) ? [{value:"15:50",label:"15:50–16:50"}] : [];
+
+ if(activity==="Judo"){
+  if(day===1||day===3) return [{value:"16:00",label:"16:00–17:00"}];
+  if(day===2||day===4) return [
+   {value:"17:00",label:"17:00–18:00"},
+   {value:"18:00",label:"18:00–19:00"},
+   {value:"19:00",label:"19:00–20:00"}
+  ];
+ }
+
+ return [];
+}
+
+function updateAttendanceTimes(){
+ const activity=document.getElementById("attActivity")?.value||"";
+ const date=document.getElementById("attDate")?.value||iso(new Date());
+ const timeSelect=document.getElementById("attTime");
+ const context=document.getElementById("attendanceContext");
+ if(!timeSelect)return;
+
+ const options=getAttendanceSchedule(activity,date);
+ timeSelect.innerHTML=options.length
+  ? '<option value="">Selecciona hora</option>'+options.map(o=>`<option value="${o.value}">${o.label}</option>`).join("")
+  : '<option value="">No hay clase de este deporte este día</option>';
+ timeSelect.disabled=!activity||!options.length;
+
+ if(context){
+  if(!activity){
+   context.innerHTML='<span><b>Asistencia:</b> selecciona primero el deporte y después el horario.</span>';
+  }else if(!options.length){
+   context.innerHTML=`<span><b>${activity}:</b> no hay horario programado para ${getAttendanceDayName(date)}.</span>`;
+  }else{
+   context.innerHTML=`<span><b>${activity}:</b> ${getAttendanceDayName(date)} · selecciona la hora de la clase.</span>`;
+  }
+ }
+}
+
 function renderAttendance(){
+ const activity=document.getElementById("attActivity")?.value||"";
+ const time=document.getElementById("attTime")?.value||"";
+ const group=document.getElementById("attGroup")?.value||"";
+ const date=document.getElementById("attDate")?.value||iso(new Date());
+ const dayName=getAttendanceDayName(date);
 
- const group=
-  document
-   .getElementById("attGroup")
-   .value;
+ const list=students.filter(s=>{
+  const studentDays=Array.isArray(s.days)?s.days:[];
+  return s.active!==false &&
+   !!activity &&
+   !!time &&
+   (s.activity||"")==activity &&
+   (s.time||"")==time &&
+   (!studentDays.length || studentDays.includes(dayName)) &&
+   (!group || s.group===group);
+ });
 
- const date=
-  document
-   .getElementById("attDate")
-   .value;
+ const selectedSchedule=getAttendanceSchedule(activity,date).find(x=>x.value===time);
+ const title=activity && selectedSchedule
+  ? `${activity==="Judo"?"🥋":"🏃"} ${activity} · ${selectedSchedule.label}`
+  : "Selecciona deporte y horario";
 
-
- const list=
-  students.filter(
-   s=>s.group===group
-  );
-
-
- document
-  .getElementById("attendanceList")
-  .innerHTML=
-
-  list.map(
-   s=>{
-
-    const key=
-     date+"_"+s.id;
-
-    const status=
-     attendance[key]||"pending";
-
+ document.getElementById("attendanceList").innerHTML=
+  !activity || !time
+  ? `<div class="empty" style="grid-column:1/-1">
+      <strong>${title}</strong><br>
+      <span style="display:block;margin-top:7px">Selecciona primero el deporte y después la hora para cargar los alumnos de esa clase.</span>
+     </div>`
+  : list.map(s=>{
+    const key=date+"_"+s.id;
+    const status=attendance[key]||"pending";
 
     return `
-
     <div class="att">
-
      <div class="row-left">
-
-      <div class="avatar">
-       ${initials(s.name)}
-      </div>
-
+      <div class="avatar">${initials(s.name)}</div>
       <div>
-
-       <div class="row-title">
-        ${s.name}
+       <div class="row-title">${s.name}</div>
+       <div class="row-sub">${s.activity||"Judo"} · ${s.group||"Sin grupo"} · ${s.belt||"Blanco"}</div>
+       <div style="margin-top:5px">
+        <span class="badge ${s.ampa==="Sí"?"green":"blue"}">${s.ampa==="Sí"?"AMPA":"NO AMPA"}</span>
        </div>
-
-       <div class="row-sub">
-        ${s.belt}
-       </div>
-
       </div>
-
      </div>
-
 
      <div class="actions">
-
-      <button
-       class="btn
-       ${status==="present"?"green":""}"
-       onclick="
-        setAtt(
-         ${s.id},
-         'present'
-        )
-       "
-      >
-       ✓
-      </button>
-
-
-      <button
-       class="btn
-       ${status==="absent"?"primary":""}"
-       onclick="
-        setAtt(
-         ${s.id},
-         'absent'
-        )
-       "
-      >
-       ✕
-      </button>
-
+      <button class="btn ${status==="present"?"green":""}" onclick="setAtt(${s.id},'present')">✓</button>
+      <button class="btn ${status==="absent"?"primary":""}" onclick="setAtt(${s.id},'absent')">✕</button>
      </div>
-
-    </div>
-
-    `;
-
-   }
-  )
-  .join("")
-
-  ||
-
-  `
-  <div
-   class="empty"
-   style="grid-column:1/-1"
-  >
-   Selecciona un grupo con alumnos.
-  </div>
-  `;
-
+    </div>`;
+   }).join("") ||
+   `<div class="empty" style="grid-column:1/-1">
+      No hay alumnos inscritos en <strong>${activity}</strong> para las <strong>${time}</strong> de este día.
+    </div>`;
 }
-
 
 function setAtt(id,status){
-
- const date=
-  document
-   .getElementById("attDate")
-   .value;
-
- attendance[
-  date+"_"+id
- ]=status;
-
+ const date=document.getElementById("attDate").value;
+ attendance[date+"_"+id]=status;
  save();
-
  renderAttendance();
-
 }
 
-
 function openAttendanceFor(group){
-
  showView("attendance");
-
- document
-  .getElementById("attGroup")
-  .value=group;
-
+ const groupSelect=document.getElementById("attGroup");
+ if(groupSelect){
+  const exists=[...groupSelect.options].some(o=>o.value===group);
+  groupSelect.value=exists?group:"";
+ }
  renderAttendance();
-
 }
 
 
@@ -3627,7 +3631,8 @@ async function init(){
  );
 
  fillSelect(
-  "attGroup"
+  "attGroup",
+  true
  );
 
  fillSelect(
@@ -3648,6 +3653,7 @@ async function init(){
   .getElementById("attDate")
   .value=iso(new Date());
 
+ updateAttendanceTimes();
 
  renderDashboard();
 
