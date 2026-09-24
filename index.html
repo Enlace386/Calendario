@@ -1112,7 +1112,7 @@ input:focus,select:focus{
 >
 <option value="">Todos los deportes</option>
 <option value="Judo">🥋 Judo</option>
-<option value="Multideporte">🏃 Multideporte</option>
+<option value="Multideporte">🛹 Multideporte</option>
 </select>
 
 <select
@@ -1209,7 +1209,7 @@ input:focus,select:focus{
 >
 <option value="">Selecciona deporte</option>
 <option value="Judo">🥋 Judo</option>
-<option value="Multideporte">🏃 Multideporte</option>
+<option value="Multideporte">🛹 Multideporte</option>
 </select>
 
 <select
@@ -1575,7 +1575,7 @@ input:focus,select:focus{
 <label>Actividad *</label>
 <select id="newActivity" onchange="updateStudentTimes()">
 <option value="Judo">🥋 Judo</option>
-<option value="Multideporte">🏃 Multideporte</option>
+<option value="Multideporte">🛹 Multideporte</option>
 </select>
 </div>
 
@@ -2816,7 +2816,7 @@ function renderStudents(){
       </div>
      </div>
     </td>
-    <td><span class="badge ${activity==="Judo"?"green":"blue"}">${activity==="Judo"?"🥋 Judo":"🏃 Multideporte"}</span></td>
+    <td><span class="badge ${activity==="Judo"?"green":"blue"}">${activity==="Judo"?"🥋 Judo":"🛹 Multideporte"}</span></td>
     <td><div style="min-width:175px"><b>${s.time||"—"}</b><div class="row-sub">${days||"Sin días"}</div></div></td>
     <td><span class="badge ${s.ampa==="Sí"?"green":""}">${s.ampa||"No"}</span></td>
     <td>${s.group||"—"}</td>
@@ -2838,7 +2838,7 @@ function renderStudents(){
  const toolbar=document.getElementById("studentsSummary");
  if(toolbar){
   const parts=[];
-  if(activity) parts.push(activity==="Judo"?"🥋 Judo":"🏃 Multideporte");
+  if(activity) parts.push(activity==="Judo"?"🥋 Judo":"🛹 Multideporte");
   if(time){ const o=getActivityScheduleOptions(activity).find(x=>x.value===time); if(o) parts.push(o.label); }
   if(belt) parts.push(belt);
   toolbar.innerHTML=`<span><b>${list.length}</b> alumnos${parts.length?" · "+parts.join(" · "):""}</span>`;
@@ -3038,7 +3038,7 @@ function renderAttendance(){
 
  const selectedSchedule=getAttendanceSchedule(activity,date).find(x=>x.value===time);
  const title=activity && selectedSchedule
-  ? `${activity==="Judo"?"🥋":"🏃"} ${activity} · ${selectedSchedule.label}`
+  ? `${activity==="Judo"?"🥋":"🛹"} ${activity} · ${selectedSchedule.label}`
   : "Selecciona deporte y horario";
 
  document.getElementById("attendanceList").innerHTML=
